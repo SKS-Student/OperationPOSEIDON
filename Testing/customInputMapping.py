@@ -4,21 +4,37 @@ import numpy as np
 pv.global_theme.allow_empty_mesh = True
 
 plotter = pv.Plotter()
+points = []
 
-points = np.array([
-[0,0,-2],[10,0,-3],[20,0,-4],[30,0,-3],[40,0,-2],[50,0,-1],
-[0,10,-3],[10,10,-5],[20,10,-6],[30,10,-5],[40,10,-3],[50,10,-2],
-[0,20,-4],[10,20,-6],[20,20,-9],[30,20,-7],[40,20,-5],[50,20,-3],
-[0,30,-3],[10,30,-5],[20,30,-7],[30,30,-8],[40,30,-6],[50,30,-4],
-[0,40,-2],[10,40,-4],[20,40,-6],[30,40,-7],[40,40,-5],[50,40,-3],
-[0,50,-1],[10,50,-2],[20,50,-3],[30,50,-4],[40,50,-3],[50,50,-2],
+# grid resolution
+for x in range(0, 61, 2):
+    for y in range(0, 61, 2):
 
-[5,5,-3],[15,5,-4],[25,5,-5],[35,5,-4],[45,5,-3],
-[5,15,-5],[15,15,-7],[25,15,-8],[35,15,-6],[45,15,-4],
-[5,25,-6],[15,25,-8],[25,25,-10],[35,25,-7],[45,25,-5],
-[5,35,-5],[15,35,-7],[25,35,-9],[35,35,-8],[45,35,-6],
-[5,45,-3],[15,45,-5],[25,45,-6],[35,45,-5],[45,45,-4]
-])
+        # distance from center (30,30)
+        dx = x - 30
+        dy = y - 30
+        dist = np.sqrt(dx**2 + dy**2)
+
+        # --- base basin shape (deep center, shallow edges) ---
+        depth = -8 - (dist * 0.25)
+
+        # --- add central deep basin ---
+        depth += -6 * np.exp(-(dist**2) / 400)
+
+        # --- add ridges (wave-like patterns) ---
+        depth += 2 * np.sin(x * 0.2) * np.cos(y * 0.15)
+
+        # --- add trench (diagonal feature) ---
+        trench = np.exp(-((x - y - 10)**2) / 50)
+        depth += -5 * trench
+
+        # --- small random variation (natural noise) ---
+        depth += np.random.uniform(-0.5, 0.5)
+
+        points.append([x, y, depth])
+
+points = np.array(points)
+
 # points = np.array([[0.0, 0.0, 0.0], [6.0, 1.0, 13.0], [2.0, 4.0, -2.0]])
 cloud = pv.PolyData(points)
 cloud["z"] = points[:, 2]
@@ -26,13 +42,12 @@ cloud["z"] = points[:, 2]
 actor = plotter.add_mesh(
     cloud,
     scalars="z",
-    cmap='viridis',
-    point_size=10,
+    cmap='Blues',
+    point_size=2,
     render_points_as_spheres=True,
     show_scalar_bar=True,
 )
 
-actor.GetProperty().SetPointSize(10)
 
 # build initial mesh from points and create a mesh actor
 surf = cloud.delaunay_2d()
@@ -41,12 +56,14 @@ if surf.n_points:
 mesh_actor = plotter.add_mesh(
     surf,
     scalars='z',
-    cmap='viridis',
-    opacity=0.4,
+    cmap='Blues',
+    opacity=0.7,
     show_edges=True,
+    # clim=(points[:, 2].min(), points[:, 2].max())
+    clim=[-25,-8]
 )
 
-plotter.set_background("white")
+plotter.set_background("#c0e4fa")
 plotter.enable_eye_dome_lighting()
 plotter.enable_trackball_style()  # <-- Enable free camera movement
 
